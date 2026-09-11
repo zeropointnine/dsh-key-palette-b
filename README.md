@@ -106,6 +106,17 @@ Rules:
 - **Service**: `keys.actions` is provided app-wide via `ctx.provide()`.
 - **UI**: the palette mounts in the `shell.overlay` slot; the settings page in
   `settings.section`.
+- **Styling**: the palette's chrome is the shared `Modal` primitive from
+  `@deepseek-ai/dsh-client-ui-primitives`, required at runtime through the
+  shell's frozen module table (`PLATFORM_MODULES`) — the same module identity
+  and hashed CSS the app itself renders, so the dialog chrome cannot drift.
+  Only geometry is overridden through the primitive's `className` /
+  `contentClassName` hooks (600px width, scroll cap). If the primitives row is
+  ever absent from the module table, the palette falls back to its own chrome
+  expressed entirely in the global `--dsw-*` design tokens (mask + blur, r32
+  panel on `bg-layer-2`, `elevation-prominent`), mirroring
+  `SettingsRoot.module.css` token for token. Inner content (rows, kbd chips)
+  is always token-based.
 - **Dispatch**: a single capture-phase `window` `keydown` listener matches
   combos and runs the bound action.
 - **Persistence**: bindings are saved to `localStorage`.
