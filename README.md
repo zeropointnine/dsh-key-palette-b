@@ -29,7 +29,7 @@ Then, in the browser:
    actions (external bindings are kept).
 
 The same binding UI is under Settings → Shortcuts (快捷键). Bindings persist
-in `localStorage` (`dsh.keys-palette.v1`).
+in `localStorage` (`dsh.key-palette-b.v1`).
 
 Built-in actions and their defaults:
 
