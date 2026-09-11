@@ -4,134 +4,137 @@
 > (`plugins/dsh-keys-palette`), extracted as a standalone repo and renamed to
 > `dsh-key-palette-b`.
 
+Repository: <https://github.com/zeropointnine/dsh-key-palette-b>
+
 A lightweight DSH web plugin that adds a **floating shortcut palette** to the
-workspace: press `Cmd+/` (macOS) / `Ctrl+/` (elsewhere) to open it, see what
-keys DSH currently uses, and bind your own key combos to common behaviors.
-(UI follows the DSH language — zh/en.)
+workspace. Press `Cmd+/` on macOS or `Ctrl+/` elsewhere to view registered
+actions and bind key combinations to them. The UI follows DSH's active English
+or Chinese locale.
+
+## Installation
+
+With `pnpm` available on `PATH`:
+
+```bash
+dsh plugin --profile web add github:zeropointnine/dsh-key-palette-b
+```
+
+Restart `dsh` after installation. Append `#<commit-or-tag>` to pin a version.
 
 ## Usage
 
-```bash
-# install into the web profile of a running dsh (npm / bundle channel; latest)
-dsh plugin --profile web add dsh-key-palette-b
-```
+In the browser:
 
-The bundle channel composes at profile boot — it takes effect on the next
-`dsh` start. Pick **one** install channel; mixing the bundle channel with a
-hot-apply script double-mounts the plugin.
+1. Press `Cmd+/` on macOS or `Ctrl+/` elsewhere to open the palette.
+2. Press **Record** beside an action, then press your key combination.
+3. **Clear** unbinds one action. **Reset defaults** resets only the built-in
+   actions; external bindings are preserved.
 
-Then, in the browser:
+The same binding UI is available under **Settings → Shortcuts**. Bindings
+persist in `localStorage` under `dsh.key-palette-b.v1`.
 
-1. Press `Cmd+/` to open the palette.
-2. In **Custom bindings**, press Record (录制) on a row, then press your
-   combo — done.
-3. Clear (清除) unbinds; Reset defaults (恢复默认) resets only the built-in
-   actions (external bindings are kept).
+## Built-in actions
 
-The same binding UI is under Settings → Shortcuts (快捷键). Bindings persist
-in `localStorage` (`dsh.key-palette-b.v1`).
-
-Built-in actions and their defaults:
+These defaults apply on first use and when **Reset defaults** is pressed. A
+saved user binding takes precedence over its default.
 
 | id | label | default |
 | --- | --- | --- |
-| `toggle-sidebar` | Toggle Sidebar (切换侧边栏) | `Mod+Shift+E` |
-| `new-session` | New Session (新建会话) | `Mod+Shift+Enter` |
-| `session-prev` | Previous Session (上一会话) | `Mod+Shift+[` |
-| `session-next` | Next Session (下一会话) | `Mod+Shift+]` |
-| `cycle-theme` | Cycle Theme (切换明暗主题) | `Mod+Shift+K` |
-| `show-conversation` | Show Conversation (显示会话面板) | — |
-| `open-details` / `open-details-fullscreen` / `close-details` | Open docked/fullscreen Details or close it (打开停靠/全屏详情栏或关闭) | — |
-| `open-workspace` | Pick, register, and open a Workspace (打开工作区) | — |
-| `cycle-locale` | Cycle UI Language (切换界面语言) | — |
+| `new-session` | New Session | `Mod+Shift+Enter` |
+| `session-prev` | Previous Session | `Mod+Shift+[` |
+| `session-next` | Next Session | `Mod+Shift+]` |
+| `toggle-sidebar` | Toggle Sidebar | `Mod+Shift+E` |
+| `toggle-right-sidebar` | Toggle Right Sidebar | Unbound |
+| `focus-composer` | Focus Composer | Unbound |
+| `focus-search` | Focus Session Search | `Mod+Shift+F` |
+| `open-workspace` | Open Workspace | Unbound |
+| `open-settings` | Open Settings | `Mod+,` |
+| `cycle-theme` | Cycle Theme | `Mod+Shift+K` |
+| `cycle-locale` | Cycle UI Language | Unbound |
 
-`Mod` = `Cmd` on macOS, `Ctrl` elsewhere. Browser-reserved combos (e.g.
-`Cmd+S`) never reach the page and can't be bound. `[` / `]` bindings match the
-physical bracket keys, so they work the same on any keyboard layout.
+`Mod` means `Cmd` on macOS and `Ctrl` elsewhere. The fixed palette trigger also
+accepts a full-width slash: `Mod+／`. Browser- or OS-reserved combinations may
+not reach the page and therefore may not work. The `[` and `]` defaults match
+the physical bracket keys, so they remain stable across keyboard layouts.
 
-### Session prev/next
+See [docs/hotkeys.md](docs/hotkeys.md) for each built-in action's implementation
+and maintenance notes.
 
-`session-prev` / `session-next` walk your sessions in **recently-touched
-order** (newest first; archived, blank, and subagent sessions are skipped) and
-open the neighbor immediately — the sidebar's selected highlight follows for
-free. Opening a session does not itself count as "touching" it (only durable
-messages do), so the order does not reshuffle while you walk; the walk's
-ordering is additionally frozen for **5 seconds after each prev/next press** so
-background session activity can't reorder the list mid-burst. The walk clamps
-at the oldest/newest session rather than wrapping.
+### Session previous/next
 
-## Standardized shortcut extension
+`session-prev` and `session-next` walk sessions in **recently touched order**,
+newest first. Archived, blank, and subagent sessions are skipped. Opening a
+session does not itself count as touching it; only durable messages change that
+order. The ordering is also frozen for five seconds after each previous/next
+press so background activity cannot reorder the list during a burst. The walk
+clamps at the oldest and newest sessions instead of wrapping.
 
-The plugin exposes one public client service, visible to every plugin
-(static web plugin or dynamic Cordis plugin) in the same page:
+## Shortcut extension API
 
-```
+`keys.actions` is a custom client-side action registry published through the
+standard DSH/Cordis context service mechanism. It is available to static web
+plugins and dynamic Cordis client plugins in the same isolation scope while
+this plugin is mounted:
+
+```text
 keys.actions
   register(def: { id, label?, description?, source?, run: () => void | Promise<void> }) => disposer
-  list()  : { id, label, description, source }[]
-  subscribe(fn) => unsubscribe
+  list(): { id, label, description, source }[]
+  subscribe(listener) => unsubscribe
 ```
 
 ```js
-// any dsh web plugin's client half
+// Any DSH web plugin's client half
 export function apply(ctx) {
-  const keys = ctx.get('keys.actions');   // undefined until this plugin is installed
+  const keys = ctx.get("keys.actions");
   if (!keys) return;
 
-  const dispose = keys.register({
-    id: 'my-feature.open-panel',
-    label: 'Open my panel',
-    run: () => { /* your behavior */ },
+  const unregister = keys.register({
+    id: "my-feature.open-panel",
+    label: "Open My Feature",
+    source: "my-feature",
+    run: () => {
+      // Invoke your plugin's behavior here.
+    },
   });
-  ctx.effect(() => dispose);              // unregister on unload — your job
+
+  ctx.effect(() => unregister);
 }
 ```
 
 Rules:
 
-- `id` must be unique (built-ins: `toggle-sidebar`, `show-conversation`,
-  `open-details`, `open-details-fullscreen`, `close-details`, `new-session`,
-  `session-prev`, `session-next`, `open-workspace`, `cycle-theme`,
-  `cycle-locale`); duplicates are rejected
-  with a console error.
-- **Cleanup is the registrant's responsibility**: call the returned disposer
-  on unload (`ctx.effect(() => dispose)`). There is no per-registrant fiber
-  tracking; the whole registry is removed when this plugin unloads.
-- `run` executes in the registering plugin's context, so it can use its own
-  services freely.
-- User bindings are never overwritten when the action list changes.
+- `id` must be stable and globally unique. Duplicate IDs are rejected with a
+  console error, and `register()` returns a no-op disposer.
+- External plugins should set `source` explicitly so the contributor is
+  attributed correctly in the UI.
+- Registration is not automatically tied to the contributing plugin's
+  lifecycle. Pass the returned disposer to `ctx.effect()` or otherwise call it
+  on unload. The entire registry is removed when this plugin unloads.
+- The supplied `run` callback can close over the contributing plugin's services
+  and state. Synchronous exceptions and rejected promises are logged.
+- Registering or unregistering actions never overwrites saved user bindings.
+  An action registered without a previously saved binding starts unbound.
+- `ctx.get("keys.actions")` returns `undefined` when the service is unavailable;
+  the API does not queue registrations or provide a readiness callback.
+
+See [docs/keys-actions.md](docs/keys-actions.md) for the complete JavaScript and
+TypeScript integration guide.
 
 ## Architecture
 
-- **Service**: `keys.actions` is provided app-wide via `ctx.provide()`.
-- **UI**: the palette mounts in the `shell.overlay` slot; the settings page in
+- **Service**: `keys.actions` is published through `ctx.provide()`.
+- **UI**: the palette mounts in `shell.overlay`; the settings page mounts in
   `settings.section`.
-- **Styling**: the palette's chrome is the shared `Modal` primitive from
-  `@deepseek-ai/dsh-client-ui-primitives`, required at runtime through the
-  shell's frozen module table (`PLATFORM_MODULES`) — the same module identity
-  and hashed CSS the app itself renders, so the dialog chrome cannot drift.
-  Only geometry is overridden through the primitive's `className` /
-  `contentClassName` hooks (600px width, scroll cap). If the primitives row is
-  ever absent from the module table, the palette falls back to its own chrome
-  expressed entirely in the global `--dsw-*` design tokens (mask + blur, r32
-  panel on `bg-layer-2`, `elevation-prominent`), mirroring
-  `SettingsRoot.module.css` token for token. Inner content (rows, kbd chips)
-  is always token-based.
-- **Dispatch**: a single capture-phase `window` `keydown` listener matches
-  combos and runs the bound action.
-- **Persistence**: bindings are saved to `localStorage`.
-
-## Development
-
-```bash
-node --check lib/client.js lib/index.js
-```
-
-Edits to `lib/` are picked up live when installed as a `link:` dependency;
-refresh the browser page after changing client code.
-
-Standalone repo — previously part of the
-[dsh-plugins](https://github.com/DDDPG/dsh-plugins) collection.
+- **Styling**: the palette uses the shared `Modal` primitive from
+  `@deepseek-ai/dsh-client-ui-primitives` when available through the shell's
+  frozen module table. If it is unavailable, the plugin falls back to local
+  chrome built entirely from the global `--dsw-*` design tokens.
+- **Dispatch**: one capture-phase `window` `keydown` listener matches bindings
+  and invokes actions. Repeated and IME-composition events are ignored.
+- **Persistence**: bindings are stored per browser profile in `localStorage`.
+- **Localization**: built-in labels and controls follow DSH's active English or
+  Chinese locale.
 
 ## License
 

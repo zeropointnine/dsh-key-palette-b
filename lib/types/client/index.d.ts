@@ -29,9 +29,9 @@ export interface KeysActionDefinition {
   label?: string;
   /** Optional short description. */
   description?: string;
-  /** Optional explicit contributor name; defaults to the registering fiber. */
+  /** Optional contributor name; external plugins should set it explicitly. */
   source?: string;
-  /** Executes the behavior. Runs in the registering plugin's own context. */
+  /** Callback supplied by the contributor; it may close over plugin state. */
   run: () => void | Promise<void>;
 }
 
