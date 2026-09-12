@@ -1,6 +1,6 @@
 {
   "name": "dsh-key-palette-b",
-  "version": "0.3.0",
+  "version": "0.1.0",
   "description": "DSH web plugin: a Cmd+/ floating shortcut palette with a public keys.actions registry (other plugins register bindable behaviors) and durable per-user bindings.",
   "type": "module",
   "main": "lib/index.js",
